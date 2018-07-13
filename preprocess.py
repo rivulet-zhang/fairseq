@@ -40,6 +40,8 @@ def get_parser():
     parser.add_argument('--only-source', action='store_true', help='Only process the source language')
     parser.add_argument('--padding-factor', metavar='N', default=8, type=int,
                         help='Pad dictionary size to be multiple of N')
+    parser.add_argument('--workers', metavar='N', default=1, type=int, help='number of parallel workers')
+
     return parser
 
 
@@ -51,7 +53,7 @@ def main(args):
     def build_dictionary(filenames):
         d = dictionary.Dictionary()
         for filename in filenames:
-            Tokenizer.add_file_to_dictionary(filename, d, tokenize_line)
+            Tokenizer.add_file_to_dictionary(filename, d, tokenize_line, args.workers)
         return d
 
     def train_path(lang):

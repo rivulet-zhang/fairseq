@@ -9,6 +9,7 @@ from collections import Counter
 import re
 
 import torch
+from multiprocessing import Pool
 
 
 SPACE_NORMALIZER = re.compile("\s+")
@@ -22,13 +23,50 @@ def tokenize_line(line):
 
 class Tokenizer:
 
+    # add file to dictionary: single worker
     @staticmethod
-    def add_file_to_dictionary(filename, dict, tokenize):
+    def add_file_to_dictionary_single_worker(filename, dict, tokenize):
         with open(filename, 'r') as f:
             for line in f:
                 for word in tokenize(line):
                     dict.add_symbol(word)
                 dict.add_symbol(dict.eos_word)
+
+    # add file to dictionary: multi-worker (slave)
+    @staticmethod
+    def add_file_to_dictionary_child_worker(worker_id, num_of_worker, filename, eos_word, tokenize):
+        counter = Counter()
+        with open(filename, 'r') as f:
+            for line_idx, line in enumerate(f):
+                if line_idx % num_of_worker == worker_id:
+                    for word in tokenize(line):
+                        counter.update([word])
+                    counter.update([eos_word])
+        return counter
+
+    # add file to dictionary: multi-worker (master)
+    @staticmethod
+    def add_file_to_dictionary_multi_worker(filename, dict, tokenize, num_of_worker):
+        def merge_result(counter):
+            for word in counter:
+                dict.add_symbol(word, counter[word])
+
+        pool = Pool(processes=num_of_worker)
+        for worker_id in range(num_of_worker):
+            pool.apply_async(Tokenizer.add_file_to_dictionary_child_worker,
+                             (worker_id, num_of_worker, filename, dict.eos_word, tokenize), callback=merge_result)
+
+        pool.close()
+        pool.join()
+
+    @staticmethod
+    def add_file_to_dictionary(filename, dict, tokenize, num_of_worker):
+        if num_of_worker == 1:
+            Tokenizer.add_file_to_dictionary_single_worker(filename, dict, tokenize)
+        elif num_of_worker > 1:
+            Tokenizer.add_file_to_dictionary_multi_worker(filename, dict, tokenize, num_of_worker)
+        else:
+            raise ValueError('Error: number of workers should be a positive number')
 
     @staticmethod
     def binarize(filename, dict, consumer, tokenize=tokenize_line,
