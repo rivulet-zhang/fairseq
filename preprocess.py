@@ -40,6 +40,8 @@ def get_parser():
     parser.add_argument('--only-source', action='store_true', help='Only process the source language')
     parser.add_argument('--padding-factor', metavar='N', default=8, type=int,
                         help='Pad dictionary size to be multiple of N')
+    parser.add_argument('--workers', metavar='N', default=1, type=int, help='number of parallel workers')
+
     return parser
 
 
@@ -120,7 +122,7 @@ def main(args):
             ds.add_item(tensor)
 
         input_file = '{}{}'.format(input_prefix, ('.' + lang) if lang is not None else '')
-        res = Tokenizer.binarize(input_file, dict, consumer)
+        res = Tokenizer.binarize(input_file, dict, consumer, num_of_worker=args.workers)
         print('| [{}] {}: {} sents, {} tokens, {:.3}% replaced by {}'.format(
             lang, input_file, res['nseq'], res['ntok'],
             100 * res['nunk'] / res['ntok'], dict.unk_word))
