@@ -105,9 +105,7 @@ class Tokenizer:
         def process_queue(ids_queue):
             num_of_none = 0
             while True:
-                if ids_queue.empty():
-                    continue
-                top = ids_queue.get_nowait()
+                top = ids_queue.get()
                 if top is None:
                     num_of_none += 1
                     if num_of_none == num_of_worker:
